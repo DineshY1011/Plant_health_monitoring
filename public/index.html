@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Plant Health Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Firebase App (the core Firebase SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <!-- Firebase Realtime Database -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <style>
+    :root {
+      --leaf-green: #4caf50;
+      --light-green: #8bc34a;
+      --accent-green: #2fd1a2;
+      --soil-brown: #795548;
+      --sunlight-yellow: #FFC107;
+      --water-blue: #03A9F4;
+      --sky-blue: #E3F2FD;
+      --cloud-white: #FFFFFF;
+      --humidity-teal: #009688;
+      --danger-red: #e53935;
+      --warning-orange: #ff9800;
+    }
+    
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      margin: 0; 
+      padding: 0; 
+      background-color: var(--sky-blue);
+      background-image: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
+      min-height: 100vh;
+    }
+    
+    .header { 
+      background: linear-gradient(90deg, var(--leaf-green), var(--light-green));
+      padding: 25px;
+      color: white; 
+      position: relative;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 4px solid rgba(255,255,255,0.3);
+    }
+    
+    .title {
+      font-size: 28px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+    }
+    
+    .title i {
+      margin-right: 15px;
+      font-size: 32px;
+      color: rgba(255,255,255,0.9);
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 25px;
+    }
+    
+    /* Improved grid layout */
+    .dashboard { 
+      display: grid; 
+      grid-template-columns: repeat(3, 1fr) 250px;
+      grid-template-areas: 
+        "moisture temp water-level water-level"
+        "humidity auto-mode water-level water-level"
+        "history history history history"
+        "pump pump pump pump";
+      gap: 25px; 
+      margin-bottom: 25px;
+    }
+    
+    .widget { 
+      background: linear-gradient(145deg, #ffffff, #f5f5f5);
+      border-radius: 18px; 
+      padding: 25px 20px; 
+      text-align: center;
+      box-shadow: 5px 5px 15px rgba(0,0,0,0.05), 
+                  -5px -5px 15px rgba(255,255,255,0.6);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255,255,255,0.8);
+      position: relative;
+      min-height: 200px;
+    }
+    
+    .widget:hover {
+      transform: translateY(-5px);
+      box-shadow: 7px 7px 20px rgba(0,0,0,0.1), 
+                  -7px -7px 20px rgba(255,255,255,0.7);
+    }
+    
+    .widget-icon {
+      font-size: 36px;
+      margin-bottom: 18px;
+      background: linear-gradient(145deg, #ffffff, #f5f5f5);
+      width: 70px;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      box-shadow: 3px 3px 7px rgba(0,0,0,0.05), 
+                  -3px -3px 7px rgba(255,255,255,0.8);
+      margin-top: -45px;
+      border: 1px solid rgba(255,255,255,0.8);
+    }
+    
+    .moisture-icon { color: var(--water-blue); }
+    .climate-icon { color: #FF5722; }
+    .water-icon { color: var(--water-blue); }
+    .humidity-icon { color: var(--humidity-teal); }
+    .history-icon { color: #9C27B0; }
+    
+    .widget-title { 
+      color: #555; 
+      margin-bottom: 15px; 
+      font-size: 19px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    
+    /* Enhanced Widget Icons */
+.widget-icon {
+  font-size: 28px;
+  margin-bottom: 18px;
+  background: linear-gradient(145deg, #ffffff, #f5f5f5);
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  box-shadow: 4px 4px 10px rgba(0,0,0,0.1), 
+              -4px -4px 10px rgba(255,255,255,0.9);
+  margin-top: -50px;
+  border: 1px solid rgba(255,255,255,0.8);
+  position: relative;
+  z-index: 2;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.widget-icon:hover {
+  transform: scale(1.05);
+  box-shadow: 6px 6px 12px rgba(0,0,0,0.12), 
+              -6px -6px 12px rgba(255,255,255,1);
+}
+
+/* Improved icon colors with gradients */
+.moisture-icon i { 
+  background: linear-gradient(135deg, #03A9F4, #81D4FA);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 34px;
+}
+
+.climate-icon i { 
+  background: linear-gradient(135deg, #FF5722, #FFAB91);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 34px;
+}
+
+.water-icon i { 
+  background: linear-gradient(135deg, #2196F3, #90CAF9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 34px;
+}
+
+.humidity-icon i { 
+  background: linear-gradient(135deg, #009688, #80CBC4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 34px;
+}
+
+.history-icon i { 
+  background: linear-gradient(135deg, #9C27B0, #CE93D8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 34px;
+}
+
+/* Improved widget alignment */
+.widget {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 40px;
+}
+
+.widget-title {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #444;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+/* Improved digital display for values */
+.digital-display {
+  background: linear-gradient(145deg, #f0f0f0, #ffffff);
+  border-radius: 12px;
+  box-shadow: inset 2px 2px 5px rgba(0,0,0,0.05),
+              inset -2px -2px 5px rgba(255,255,255,0.7);
+  padding: 15px 25px;
+  margin: 10px 0 20px;
+  width: 70%;
+  text-align: center;
+}
+
+/* Improved status labels */
+.status-label {
+  padding: 7px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 3px 3px 7px rgba(0,0,0,0.05), 
+              -3px -3px 7px rgba(255,255,255,0.7);
+  transition: all 0.3s ease;
+  margin: 10px 0;
+}
+    .progress-container {
+      width: 100%;
+      height: 14px;
+      background-color: rgba(240,240,240,0.8);
+      border-radius: 15px;
+      margin: 12px 0;
+      overflow: hidden;
+      box-shadow: inset 2px 2px 5px rgba(0,0,0,0.1), 
+                  inset -2px -2px 5px rgba(255,255,255,0.5);
+      border: 1px solid rgba(255,255,255,0.8);
+    }
+    
+    .progress-bar {
+      height: 100%;
+      border-radius: 15px;
+      transition: width 0.5s ease-in-out;
+      box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    }
+    
+    .moisture-bar { background: linear-gradient(90deg, #81D4FA, var(--water-blue)); }
+    .water-bar { background: linear-gradient(90deg, #81D4FA, #0288D1); }
+    .humidity-bar { background: linear-gradient(90deg, #80CBC4, var(--humidity-teal)); }
+    
+    .progress-value, .temperature-value, .humidity-value { 
+      font-size: 34px; 
+      font-weight: bold; 
+      color: #333;
+      transition: all 0.3s ease;
+      text-shadow: 1px 1px 1px rgba(255,255,255,0.8);
+      margin: 8px 0;
+    }
+    
+    .moisture-value {
+      font-size: 42px;
+      font-weight: bold;
+      color: #333;
+      transition: all 0.3s ease;
+      text-shadow: 1px 1px 1px rgba(255,255,255,0.8);
+      margin: 10px 0;
+      letter-spacing: 1px;
+    }
+    
+    .status-label {
+      font-size: 14px;
+      color: #666;
+      margin-top: 8px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.05), 
+                  -2px -2px 5px rgba(255,255,255,0.5);
+      display: inline-block;
+    }
+    
+    /* Soil Moisture Widget */
+    .moisture-widget {
+      grid-area: moisture;
+    }
+    
+    /* Temperature Widget */
+    .temperature-widget {
+      grid-area: temp;
+    }
+    
+    /* Humidity Widget */
+    .humidity-widget {
+      grid-area: humidity;
+    }
+    
+    /* Improved water level widget styles */
+    .water-level-widget {
+      grid-area: water-level;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 450px; /* Increased height to match the other widgets */
+    }
+
+    .vertical-progress-container {
+      width: 40px; /* Slightly wider */
+      height: 300px; /* Increased height to match the container */
+      background-color: rgba(240,240,240,0.8);
+      border-radius: 15px;
+      margin: 20px auto;
+      overflow: hidden;
+      box-shadow: inset 2px 2px 5px rgba(0,0,0,0.1), 
+                  inset -2px -2px 5px rgba(255,255,255,0.5);
+      border: 1px solid rgba(255,255,255,0.8);
+      position: relative;
+    }
+    
+    .vertical-progress-bar {
+      width: 100%;
+      position: absolute;
+      bottom: 0;
+      border-radius: 15px;
+      transition: height 0.5s ease-in-out;
+      box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .vertical-water-bar { 
+      background: linear-gradient(0deg, #0288D1, #81D4FA); 
+      height: 0%;
+    }
+    
+    /* Moved pump control below other widgets */
+    .pump-control { 
+      grid-area: pump;
+      background: linear-gradient(145deg, #ffffff, #f5f5f5);
+      border-radius: 18px; 
+      padding: 25px; 
+      text-align: center; 
+      box-shadow: 5px 5px 15px rgba(0,0,0,0.05), 
+                  -5px -5px 15px rgba(255,255,255,0.6);
+      border: 1px solid rgba(255,255,255,0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 100px; /* Reduce minimum height */
+    }
+    
+    .pump-button { 
+      color: var(--accent-green); 
+      font-size: 20px; 
+      font-weight: bold; 
+      border: 2px solid var(--accent-green); 
+      background: linear-gradient(145deg, #ffffff, #f5f5f5);
+      cursor: pointer; 
+      padding: 12px 30px;
+      border-radius: 50px;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 15px auto 0;
+      box-shadow: 3px 3px 7px rgba(0,0,0,0.05), 
+                  -3px -3px 7px rgba(255,255,255,0.5);
+    }
+    
+    .pump-button i {
+      margin-right: 10px;
+      font-size: 22px;
+    }
+    
+    .pump-button:hover {
+      background: linear-gradient(145deg, var(--accent-green), #26a69a);
+      color: white;
+      box-shadow: 3px 3px 10px rgba(0,0,0,0.1);
+    }
+    
+    .pump-button.active {
+      background: linear-gradient(145deg, #ff5252, #e53935);
+      border-color: #e53935;
+      color: white;
+      box-shadow: 3px 3px 10px rgba(0,0,0,0.1);
+    }
+    
+    .plant-decoration {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 120px;
+      background-image: url('/api/placeholder/800/120');
+      background-size: cover;
+      z-index: -1;
+      opacity: 0.6;
+    }
+    
+    .leaf-decoration {
+      position: absolute;
+      z-index: -1;
+      opacity: 0.07;
+      font-size: 300px;
+      color: var(--leaf-green);
+      transform: rotate(-15deg);
+      right: -50px;
+      top: 100px;
+    }
+
+    /* Digital display styles */
+    .digital-display {
+      padding: 15px 30px;
+      min-width: 120px;
+      margin: 15px 0;
+    }
+
+    .auto-mode-widget {
+      grid-area: auto-mode;
+      background: linear-gradient(145deg, #ffffff, #f5f5f5);
+      border-radius: 18px; 
+      padding: 25px 20px; 
+      text-align: center;
+      box-shadow: 5px 5px 15px rgba(0,0,0,0.05), 
+                -5px -5px 15px rgba(255,255,255,0.6);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255,255,255,0.8);
+      position: relative;
+      min-height: 200px;
+    }
+
+    .auto-mode-widget:hover {
+      transform: translateY(-5px);
+      box-shadow: 7px 7px 20px rgba(0,0,0,0.1), 
+                -7px -7px 20px rgba(255,255,255,0.7);
+    }
+
+    .auto-mode-status {
+      font-size: 20px;
+      font-weight: bold;
+      margin: 15px 0;
+      color: #333;
+    }
+
+    /* Watering history chart */
+    .history-widget {
+      grid-area: history;
+      min-height: 250px;
+      padding-bottom: 30px;
+    }
+
+    .history-container {
+      width: 100%;
+      height: 180px;
+      margin-top: 10px;
+      position: relative;
+    }
+
+    .history-bar {
+      position: absolute;
+      bottom: 0;
+      width: 30px;
+      background: linear-gradient(0deg, var(--water-blue), #81D4FA);
+      border-radius: 5px 5px 0 0;
+      transition: height 0.5s ease;
+    }
+
+    .history-labels {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      margin-top: 5px;
+    }
+
+    .history-label {
+      font-size: 12px;
+      color: #666;
+      text-align: center;
+      width: 30px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 34px;
+      margin: 15px 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--accent-green);
+    }
+
+    input:focus + .slider {
+      box-shadow: 0 0 1px var(--accent-green);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+
+    .tooltip {
+      position: relative;
+      display: inline-block;
+      margin-left: 8px;
+    }
+
+    .tooltip .tooltip-icon {
+      color: #999;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .tooltip .tooltip-text {
+      visibility: hidden;
+      width: 200px;
+      background-color: #333;
+      color: #fff;
+      text-align: center;
+      border-radius: 6px;
+      padding: 8px;
+      position: absolute;
+      z-index: 1;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity 0.3s;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .tooltip:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    /* Status indicator for connection */
+    .connection-status {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      font-size: 14px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      background-color: rgba(255,255,255,0.2);
+      color: white;
+      display: flex;
+      align-items: center;
+    }
+    
+    .connection-status i {
+      margin-right: 5px;
+    }
+    
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+    
+    .status-connected {
+      background-color: #4CAF50;
+    }
+    
+    .status-disconnected {
+      background-color: #F44336;
+    }
+    
+    .status-connecting {
+      background-color: #FFC107;
+    }
+
+    .last-update {
+      font-size: 12px;
+      color: #999;
+      text-align: center;
+      margin-top: 10px;
+    }
+    
+    .notification-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
+    
+    .notification {
+      background-color: white;
+      border-left: 4px solid var(--accent-green);
+      padding: 15px 20px;
+      margin-bottom: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      animation: slideIn 0.3s forwards;
+      max-width: 300px;
+    }
+    
+    .notification.error {
+      border-left-color: var(--danger-red);
+    }
+    
+    .notification.warning {
+      border-left-color: var(--warning-orange);
+    }
+    
+    .notification-icon {
+      margin-right: 15px;
+      font-size: 20px;
+    }
+    
+    .notification-content {
+      flex: 1;
+    }
+    
+    .notification-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .notification-close {
+      cursor: pointer;
+      padding: 5px;
+    }
+       /* Move the automatic mode icon a bit higher */
+.auto-mode-widget .widget-icon {
+  margin-top: -70px;
+}
+
+/* Center the water pump manual icon */
+.pump-control .widget-icon {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+}
+
+/* Add padding to the pump control to accommodate the centered icon */
+.pump-control {
+  padding-top: 50px;
+  position: relative;
+}
+    
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes slideOut {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+    }
+
+    /* Loading spinner */
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Improved responsive design */
+    @media (max-width: 1024px) {
+      .dashboard {
+        grid-template-columns: repeat(2, 1fr) 250px;
+        grid-template-areas: 
+          "moisture temp water-level"
+          "auto-mode humidity water-level"
+          "history history history"
+          "pump pump pump";
+      }
+    }
+
+    @media (max-width: 768px) {
+      .dashboard {
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas: 
+          "moisture temp"
+          "auto-mode humidity"
+          "water-level water-level"
+          "history history"
+          "pump pump";
+      }
+    }
+
+    @media (max-width: 600px) {
+      .dashboard {
+        grid-template-columns: 1fr;
+        grid-template-areas: 
+          "moisture"
+          "temp"
+          "humidity"
+          "auto-mode"
+          "water-level"
+          "history"
+          "pump";
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">
+      <i class="fas fa-leaf"></i>
+      Smart Plant Health Monitor
+    </div>
+    <div class="connection-status">
+      <div class="status-indicator status-connecting" id="connectionIndicator"></div>
+      <span id="connectionText">Connecting...</span>
+    </div>
+  </div>
+  
+  <div class="container">
+    <div class="dashboard">
+<!-- Soil Moisture Widget -->
+<div class="widget moisture-widget">
+  <div class="widget-icon moisture-icon">
+    <i class="fas fa-droplet"></i>
+  </div>
+  <div class="widget-title">Soil Moisture</div>
+  <div class="digital-display">
+    <div class="moisture-value" id="moisture">--</div>
+  </div>
+  <div class="status-label" id="moistureStatus">Loading...</div>
+  <div class="last-update" id="moistureLastUpdate"></div>
+</div>
+
+<!-- Temperature Widget -->
+<div class="widget temperature-widget">
+  <div class="widget-icon climate-icon">
+    <i class="fas fa-temperature-high"></i>
+  </div>
+  <div class="widget-title">Temperature</div>
+  <div class="digital-display">
+    <div class="temperature-value" id="temperature">--°C</div>
+  </div>
+  <div class="status-label" id="temperatureStatus">Loading...</div>
+  <div class="last-update" id="tempLastUpdate"></div>
+</div>
+
+<!-- Automatic Mode Widget -->
+<div class="widget auto-mode-widget">
+  <div class="widget-icon water-icon">
+    <i class="fas fa-robot"></i>
+  </div>
+  <div class="widget-title">
+    Water Pump (Automatic Mode)
+    <div class="tooltip">
+      <i class="fas fa-info-circle tooltip-icon"></i>
+      <span class="tooltip-text">When enabled, the system will automatically water your plant when soil is dry.</span>
+    </div>
+  </div>
+  <label class="toggle-switch">
+    <input type="checkbox" id="autoModeToggle">
+    <span class="slider"></span>
+  </label>
+  <div class="auto-mode-status" id="autoModeStatus">OFF</div>
+  <div class="status-label" id="autoModeLabel">Disabled</div>
+  <div class="last-update" id="autoModeLastUpdate"></div>
+</div>
+
+<!-- Humidity Widget -->
+<div class="widget humidity-widget">
+  <div class="widget-icon humidity-icon">
+    <i class="fas fa-cloud-rain"></i>
+  </div>
+  <div class="widget-title">Humidity</div>
+  <div class="digital-display">
+    <div class="humidity-value" id="humidity">--%</div>
+  </div>
+  <div class="progress-container">
+    <div class="progress-bar humidity-bar" id="humidityBar" style="width: 0%"></div>
+  </div>
+  <div class="status-label" id="humidityStatus">Loading...</div>
+  <div class="last-update" id="humidityLastUpdate"></div>
+</div>
+
+<!-- Water Level Widget -->
+<div class="widget water-level-widget">
+  <div class="widget-icon water-icon">
+    <i class="fas fa-glass-water"></i>
+  </div>
+  <div class="widget-title">Water Tank Level</div>
+  <div class="vertical-progress-container">
+    <div class="vertical-progress-bar vertical-water-bar" id="waterBar" style="height: 0%"></div>
+  </div>
+  <div class="progress-value" id="waterlevel">--ml</div>
+  <div class="status-label" id="waterStatus">Loading...</div>
+  <div class="last-update" id="waterLastUpdate"></div>
+</div>
+
+<!-- Watering History Widget -->
+
+<!-- Pump Control -->
+<div class="pump-control">
+  <div class="widget-icon water-icon">
+    <i class="fas fa-faucet"></i>
+  </div>
+  <div class="widget-title">Water Pump Control (Manual Mode)</div>
+  <button class="pump-button" id="pumpButton">
+    <i class="fas fa-faucet"></i>
+    <span>OFF</span>
+  </button>
+  <div class="last-update" id="pumpLastUpdate"></div>
+</div>
+
+  <!-- Notifications Container -->
+  <div class="notification-container" id="notificationContainer"></div>
+
+  <div class="plant-decoration"></div>
+  <div class="leaf-decoration">
+    <i class="fas fa-leaf"></i>
+  </div>
+
+<script>
+  // Firebase configuration - using the config from your ESP32 code
+  const firebaseConfig = {
+    apiKey: "AIzaSyCa7NF1okVy8ZlLplJ1dpRkh5b31885UGM",
+    authDomain: "agronexus-1164b.firebaseapp.com",
+    databaseURL: "https://agronexus-1164b-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "agronexus-1164b",
+    storageBucket: "agronexus-1164b.appspot.com",
+    messagingSenderId: "511121299188",
+    appId: "1:511121299188:web:1a66b6e05982b29acaf0a1",
+    measurementId: "G-576N8D9S28"
+  };
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  
+  // Get a reference to the database
+  const database = firebase.database();
+  const connectionIndicator = document.getElementById('connectionIndicator');
+  const connectionText = document.getElementById('connectionText');
+  
+  // Notifications System
+  function showNotification(title, message, type = 'info') {
+    const container = document.getElementById('notificationContainer');
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    
+    let iconClass;
+    switch(type) {
+      case 'error':
+        iconClass = 'fa-exclamation-circle';
+        break;
+      case 'warning':
+        iconClass = 'fa-exclamation-triangle';
+        break;
+      default:
+        iconClass = 'fa-info-circle';
+    }
+    
+    notification.innerHTML = `
+      <div class="notification-icon">
+        <i class="fas ${iconClass}"></i>
+      </div>
+      <div class="notification-content">
+        <div class="notification-title">${title}</div>
+        <div class="notification-message">${message}</div>
+      </div>
+      <div class="notification-close">
+        <i class="fas fa-times"></i>
+      </div>
+    `;
+    
+    container.appendChild(notification);
+    
+    // Close button functionality
+    notification.querySelector('.notification-close').addEventListener('click', () => {
+      notification.style.animation = 'slideOut 0.3s forwards';
+      setTimeout(() => {
+        container.removeChild(notification);
+      }, 300);
+    });
+    
+    // Auto close after 5 seconds
+    setTimeout(() => {
+      if (notification.parentNode === container) {
+        notification.style.animation = 'slideOut 0.3s forwards';
+        setTimeout(() => {
+          if (notification.parentNode === container) {
+            container.removeChild(notification);
+          }
+        }, 300);
+      }
+    }, 5000);
+  }
+  
+  // Connection state tracking
+  const connectedRef = database.ref(".info/connected");
+  connectedRef.on("value", (snap) => {
+    if (snap.val() === true) {
+      connectionIndicator.className = "status-indicator status-connected";
+      connectionText.textContent = "Connected";
+    } else {
+      connectionIndicator.className = "status-indicator status-disconnected";
+      connectionText.textContent = "Disconnected";
+    }
+  });
+
+  // Store button reference outside of event handler
+  let pumpstatus = false;
+  const pumpButton = document.getElementById('pumpButton');
+  const autoModeToggle = document.getElementById('autoModeToggle');
+
+  // Handle toggle changes
+  autoModeToggle.addEventListener('change', function() {
+    const autoModeValue = this.checked;
+    
+    // Update Firebase with the new auto mode status
+    database.ref('sensor/autoMode').set(autoModeValue)
+      .then(() => {
+        showNotification(
+          "Auto Mode Updated", 
+          `Automatic watering has been ${autoModeValue ? 'enabled' : 'disabled'}.`,
+          "info"
+        );
+        
+        document.getElementById('autoModeStatus').textContent = autoModeValue ? "ON" : "OFF";
+        document.getElementById('autoModeLabel').textContent = autoModeValue ? "Enabled" : "Disabled";
+        document.getElementById('autoModeLabel').style.backgroundColor = autoModeValue ? "#e8f5e9" : "#f5f5f5";
+        document.getElementById('autoModeLabel').style.color = autoModeValue ? "#4caf50" : "#666";
+        
+        // Update the last update time
+        const now = new Date();
+        document.getElementById('autoModeLastUpdate').textContent = `Last updated: ${now.toLocaleTimeString()}`;
+      })
+      .catch(error => {
+        console.error("Error updating auto mode:", error);
+        showNotification("Error", "Failed to update automatic watering mode.", "error");
+        
+        // Revert the toggle if update fails
+        this.checked = !autoModeValue;
+      });
+  });
+  
+  // Handle pump button clicks
+  pumpButton.addEventListener('click', function() {
+  // Toggle pump state
+  pumpstatus = !pumpstatus;
+  
+  // Update Firebase to control the pump
+  database.ref('sensor/pumpControl').set(pumpstatus ? "ON" : "OFF")
+    .then(() => {
+      updatePumpButton();
+      showNotification(
+        "Pump Command Sent", 
+        `Water pump command ${pumpstatus ? 'ON' : 'OFF'} has been sent.`,
+        "info"
+      );
+      
+      // Update the last update time
+      const now = new Date();
+      document.getElementById('pumpLastUpdate').textContent = `Last command: ${now.toLocaleTimeString()}`;
+      
+      // If turning on, automatically reset the button after 5 seconds
+      // to match the auto-shutoff behavior on the Arduino
+      if (pumpstatus) {
+        setTimeout(() => {
+          pumpstatus = false;
+          updatePumpButton();
+        }, 5500); // Slightly longer than Arduino delay to account for network latency
+      }
+    })
+    .catch(error => {
+      console.error("Error sending pump command:", error);
+      showNotification("Error", "Failed to control the water pump.", "error");
+      
+      // Revert local state if update fails
+      pumpstatus = !pumpstatus;
+      updatePumpButton();
+    });
+});
+  
+function listenForPumpStatus() {
+  database.ref('sensor/pumpstatus').on('value', (snapshot) => {
+    const status = snapshot.val();
+    if (status !== null) {
+      pumpActive = (status === "ON");
+      updatePumpButton();
+      
+      // Show notification when pump turns on/off (optional)
+      if (status === "ON") {
+        showNotification("Pump Active", "The water pump is currently running.", "info");
+      }
+    }
+  });
+}
+  // Function to update pump button appearance
+  function updatePumpButton() {
+    if (pumpstatus) {
+      pumpButton.classList.add('active');
+      pumpButton.querySelector('span').textContent = 'ON';
+      pumpButton.querySelector('i').className = 'fas fa-tint';
+    } else {
+      pumpButton.classList.remove('active');
+      pumpButton.querySelector('span').textContent = 'OFF';
+      pumpButton.querySelector('i').className = 'fas fa-faucet';
+    }
+  }
+  
+  // Function to format timestamps
+  function formatTimeAgo(timestamp) {
+    if (!timestamp) return 'Never';
+    
+    const now = new Date();
+    const date = new Date(timestamp);
+    const diffMs = now - date;
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+    
+    if (diffDay > 0) {
+      return `${diffDay} day${diffDay > 1 ? 's' : ''} ago`;
+    } else if (diffHour > 0) {
+      return `${diffHour} hour${diffHour > 1 ? 's' : ''} ago`;
+    } else if (diffMin > 0) {
+      return `${diffMin} minute${diffMin > 1 ? 's' : ''} ago`;
+    } else {
+      return `${diffSec} second${diffSec > 1 ? 's' : ''} ago`;
+    }
+  }
+  
+  // Function to update moisture status
+  function updateMoistureStatus(value) {
+    const moistureStatus = document.getElementById('moistureStatus');
+    let status, color, bgColor;
+    
+    if (value === "Wet") {
+      status = "Wet";
+      color = "#388e3c"; // Green for wet soil
+      bgColor = "#e8f5e9";
+    } else {
+      status = "Dry";
+      color = "#d32f2f"; // Red for dry soil
+      bgColor = "#ffebee";
+    }
+    
+    moistureStatus.textContent = status;
+    moistureStatus.style.color = color;
+    moistureStatus.style.backgroundColor = bgColor;
+  }
+  
+  // Function to update temperature status
+  function updateTemperatureStatus(value) {
+    const tempStatus = document.getElementById('temperatureStatus');
+    let status, color, bgColor;
+    
+    if (value < 15) {
+      status = "Too Cold";
+      color = "#0288d1";
+      bgColor = "#e1f5fe";
+    } else if (value < 20) {
+      status = "Cool";
+      color = "#039be5";
+      bgColor = "#e1f5fe";
+    } else if (value < 28) {
+      status = "Optimal";
+      color = "#388e3c";
+      bgColor = "#e8f5e9";
+    } else if (value < 32) {
+      status = "Warm";
+      color = "#f57c00";
+      bgColor = "#fff3e0";
+    } else {
+      status = "Too Hot";
+      color = "#d32f2f";
+      bgColor = "#ffebee";
+    }
+    
+    tempStatus.textContent = status;
+    tempStatus.style.color = color;
+    tempStatus.style.backgroundColor = bgColor;
+  }
+  
+  // Function to update humidity status
+  function updateHumidityStatus(value) {
+    const humidityStatus = document.getElementById('humidityStatus');
+    let status, color, bgColor;
+    
+    // Update the humidity progress bar
+    document.getElementById('humidityBar').style.width = `${value}%`;
+    
+    if (value < 40) {
+      status = "Low";
+      color = "#f57c00";
+      bgColor = "#fff3e0";
+    } else if (value < 60) {
+      status = "Moderate";
+      color = "#388e3c";
+      bgColor = "#e8f5e9";
+    } else {
+      status = "High";
+      color = "#0288d1";
+      bgColor = "#e1f5fe";
+    }
+    
+    humidityStatus.textContent = status;
+    humidityStatus.style.color = color;
+    humidityStatus.style.backgroundColor = bgColor;
+  }
+  
+  // Function to update water level status
+  function updateWaterStatus(value) {
+    const waterStatus = document.getElementById('waterStatus');
+    const maxLevel = 1000; // Assuming max is 1000ml
+    const percentage = (value / maxLevel) * 100;
+    
+    // Update the water level bar
+    document.getElementById('waterBar').style.height = `${percentage}%`;
+    
+    let status, color, bgColor;
+    
+    if (percentage < 30) {
+      status = "Low";
+      color = "#d32f2f";
+      bgColor = "#ffebee";
+    } else if (percentage < 60) {
+      status = "Medium";
+      color = "#f57c00";
+      bgColor = "#fff3e0";
+    } else {
+      status = "Full";
+      color = "#388e3c";
+      bgColor = "#e8f5e9";
+    }
+    
+    waterStatus.textContent = status;
+    waterStatus.style.color = color;
+    waterStatus.style.backgroundColor = bgColor;
+  }
+  
+  // Function to update watering history chart
+  function updateWateringHistory(history) {
+    const historyContainer = document.getElementById('wateringHistory');
+    const historyLabels = document.getElementById('historyLabels');
+    
+    // Clear existing content
+    historyContainer.innerHTML = '';
+    historyLabels.innerHTML = '';
+    
+    if (!history || !Array.isArray(history)) {
+      historyContainer.innerHTML = '<div style="text-align: center; padding: 20px;">No watering history available</div>';
+      return;
+    }
+    
+    // Get the dates for the last 7 days
+    const dates = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      dates.push(date.toLocaleDateString('en-US', { weekday: 'short' }));
+    }
+    
+    // If history array is shorter than 7, pad with zeros
+    const paddedHistory = Array(7).fill(0);
+    history.slice(-7).forEach((value, idx) => {
+      paddedHistory[paddedHistory.length - history.length + idx] = value;
+    });
+    
+    // Calculate max value for scaling
+    const maxValue = Math.max(...paddedHistory, 1);
+    
+    // Create bars and labels
+    paddedHistory.forEach((value, index) => {
+      const height = value > 0 ? (value / maxValue) * 150 : 0;
+      
+      const bar = document.createElement('div');
+      bar.className = 'history-bar';
+      bar.style.height = `${height}px`;
+      bar.style.left = `${(index / 7) * 100}%`;
+      bar.style.transform = 'translateX(-50%)';
+      bar.title = `${value} ml watered`;
+      
+      historyContainer.appendChild(bar);
+      
+      const label = document.createElement('div');
+      label.className = 'history-label';
+      label.textContent = dates[index];
+      label.style.marginLeft = `${(index / 7) * 100}%`;
+      label.style.transform = 'translateX(-50%)';
+      
+      historyLabels.appendChild(label);
+    });
+    
+    // Update the last update time
+    const now = new Date();
+    document.getElementById('historyLastUpdate').textContent = `Last updated: ${now.toLocaleTimeString()}`;
+  }
+  
+  // Listen for changes in the database
+  database.ref('sensor').on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
+    
+    // Update UI components with the latest data
+    if (data.soilmoisture !== undefined) {
+      document.getElementById('moisture').textContent = data.soilmoisture;
+      updateMoistureStatus(data.soilmoisture);
+      document.getElementById('moistureLastUpdate').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+    }
+    
+    if (data.temperature !== undefined) {
+      document.getElementById('temperature').textContent = `${data.temperature}°C`;
+      updateTemperatureStatus(data.temperature);
+      document.getElementById('tempLastUpdate').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+    }
+    
+    if (data.humidity !== undefined) {
+      document.getElementById('humidity').textContent = `${data.humidity}%`;
+      updateHumidityStatus(data.humidity);
+      document.getElementById('humidityLastUpdate').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+    }
+    
+    if (data.waterlevel !== undefined) {
+      document.getElementById('waterlevel').textContent = `${data.waterlevel}ml`;
+      updateWaterStatus(data.waterlevel);
+      document.getElementById('waterLastUpdate').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+      
+      // Check for low water level
+      if (data.waterlevel < 200) {
+        showNotification(
+          "Low Water Level", 
+          "Please refill the water tank soon.",
+          "warning"
+        );
+      }
+    }
+    
+    if (data.pumpstatus !== undefined) {
+      pumpstatus = data.pumpstatus;
+      updatePumpButton();
+    }
+    
+    if (data.autoMode !== undefined) {
+      autoModeToggle.checked = data.autoMode;
+      document.getElementById('autoModeStatus').textContent = data.autoMode ? "ON" : "OFF";
+      document.getElementById('autoModeLabel').textContent = data.autoMode ? "Enabled" : "Disabled";
+      document.getElementById('autoModeLabel').style.backgroundColor = data.autoMode ? "#e8f5e9" : "#f5f5f5";
+      document.getElementById('autoModeLabel').style.color = data.autoMode ? "#4caf50" : "#666";
+    }
+    
+    if (data.wateringHistory) {
+      updateWateringHistory(data.wateringHistory);
+    }
+    
+    if (data.lastWatered) {
+      const lastWateredTime = formatTimeAgo(data.lastWatered);
+      // Could display this information somewhere if needed
+    }
+    
+    // Handle critical alerts
+    if (data.soilmoisture < 30 && !data.autoMode) {
+      showNotification(
+        "Plant Needs Water!", 
+        "Soil moisture is very low. Consider watering your plant soon.",
+        "warning"
+      );
+    }
+  }, (error) => {
+    console.error("Error fetching data:", error);
+    showNotification("Connection Error", "Failed to fetch data from the server.", "error");
+  });
+  
+  // Handle initial connection
+  setTimeout(() => {
+    if (connectionIndicator.className !== "status-indicator status-connected") {
+      showNotification(
+        "Connection Issue", 
+        "Having trouble connecting to the plant monitor. Please check your internet connection.",
+        "error"
+      );
+    }
+  }, 10000);
+  
+  // Send a heartbeat to check if the device is online
+  function checkDeviceStatus() {
+    const lastSeen = database.ref('sensor/lastWatered');
+    lastSeen.once('value').then((snapshot) => {
+      const timestamp = snapshot.val();
+      if (timestamp) {
+        const now = new Date().getTime();
+        const lastSeenTime = new Date(timestamp).getTime();
+        
+        // If no update in 5 minutes, consider device offline
+        if (now - lastSeenTime > 5 * 60 * 1000) {
+          connectionIndicator.className = "status-indicator status-disconnected";
+          connectionText.textContent = "Device Offline";
+          showNotification(
+            "Device Offline", 
+            "Your plant monitor device appears to be offline. Please check the device.",
+            "warning"
+          );
+        }
+      }
+    });
+  }
+  
+  // Check device status every 2 minutes
+  setInterval(checkDeviceStatus, 2 * 60 * 1000);
+  
+  // Initial check after 15 seconds
+  setTimeout(checkDeviceStatus, 15000);
+  
+  // Initialize with welcome notification
+  setTimeout(() => {
+    showNotification(
+      "Welcome to Plant Monitor", 
+      "Your smart plant monitoring dashboard is now active. Keep your plants happy!",
+      "info"
+    );
+  }, 1000);
+  listenForPumpStatus();
+</script>
+</body>
+</html>
